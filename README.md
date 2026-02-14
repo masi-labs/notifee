@@ -45,13 +45,17 @@ notifier = Notifier(
 future = notifier.notify("user signed up")
 ```
 
-The future resolves with the HTTP `Response` on success, or raises the exception on failure:
+The future resolves with the HTTP `Response` on success. Error status codes (4xx, 5xx) and network failures raise exceptions:
 
 ```python
 try:
     response = future.result()
-except Exception as e:
-    print(f"notification failed: {e}")
+except requests.HTTPError as e:
+    print(f"server returned {e.response.status_code}")
+except requests.ConnectionError:
+    print("could not connect")
+except requests.Timeout:
+    print("request timed out")
 ```
 
 You can also attach a callback instead of blocking:
@@ -76,6 +80,26 @@ try:
 except QueueFullError:
     print("too many pending notifications, dropping message")
 ```
+
+### Message formatting
+
+By default, messages are sent as `{"message": "..."}`. To customize the payload format, subclass `MessageFormatter`:
+
+```python
+from notifee import Notifier, MessageFormatter
+
+class SlackFormatter(MessageFormatter):
+    def format_message(self, message: str) -> dict:
+        return {"text": message}
+
+notifier = Notifier(
+    url="https://hooks.slack.com/...",
+    formatter=SlackFormatter(),
+)
+notifier.notify("deploy complete")  # sends {"text": "deploy complete"}
+```
+
+To add a new format, create a new class — no existing code needs to change.
 
 ### Shutdown
 
