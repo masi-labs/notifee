@@ -1,12 +1,52 @@
-.PHONY: test-unit lint lint-src lint-tests
+IMG_PREFIX = notifee
+VERSION ?= latest
+PYTHON ?= 3.14
 
+DOCKER_ARGS = --rm --interactive --tty
+
+ifeq ($(CI),true)
+	# Github Actions doesn't provide a TTY
+	DOCKER_ARGS = --rm
+endif
+
+DOCKER_RUN = docker container run \
+	$(DOCKER_ARGS) \
+	$(addprefix --volume ,$(VOLUMES))
+
+RUNNER = $(DOCKER_RUN) '$(IMG_PREFIX)-runner:$(VERSION)'
+
+.PHONY: default
+
+default: runner test lint
+
+clean:
+	docker image rm '$(IMG_PREFIX)-runner:$(VERSION)'
+
+
+.PHONY: runner test test-unit lint lint-src lint-tests
+
+test: test-unit
+
+runner:
+	docker build \
+		--build-arg 'PYTHON=$(PYTHON)' \
+		--tag '$(IMG_PREFIX)-$@:$(VERSION)' \
+		--file tests/Dockerfile \
+		.
+
+test-unit: VOLUMES += '$(PWD)/src:/code/src'
+test-unit: VOLUMES += '$(PWD)/tests:/code/tests'
+test-unit: TEST_PATH = tests/unit
 test-unit:
-	python -m pytest tests/unit
+	$(RUNNER) pytest -p no:cacheprovider $(TEST_PATH)
 
 lint: lint-src lint-tests
 
+lint-src: VOLUMES += '$(PWD)/src:/code/src'
 lint-src:
-	pylint --rcfile=.pylintrc src/notifee
+	$(RUNNER) pylint --rcfile=src/.pylintrc src/notifee
 
+lint-tests: VOLUMES += '$(PWD)/src:/code/src'
+lint-tests: VOLUMES += '$(PWD)/tests:/code/tests'
 lint-tests:
-	pylint --rcfile=.pylintrc-tests tests/
+	$(RUNNER) pylint --rcfile=tests/.pylintrc tests/
