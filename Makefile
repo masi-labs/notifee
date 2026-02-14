@@ -17,13 +17,13 @@ RUNNER = $(DOCKER_RUN) '$(IMG_PREFIX)-runner:$(VERSION)'
 
 .PHONY: default
 
-default: runner test lint
+default: runner test lint typecheck
 
 clean:
 	docker image rm '$(IMG_PREFIX)-runner:$(VERSION)'
 
 
-.PHONY: runner test test-unit lint lint-src lint-tests
+.PHONY: runner test test-unit lint lint-src lint-tests typecheck
 
 test: test-unit
 
@@ -50,3 +50,7 @@ lint-tests: VOLUMES += '$(PWD)/src:/code/src'
 lint-tests: VOLUMES += '$(PWD)/tests:/code/tests'
 lint-tests:
 	$(RUNNER) pylint --rcfile=tests/.pylintrc tests/
+
+typecheck: VOLUMES += '$(PWD)/src:/code/src'
+typecheck:
+	$(RUNNER) mypy --config-file=src/mypy.ini src/notifee

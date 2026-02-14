@@ -9,6 +9,10 @@ import requests
 from notifee.exceptions import QueueFullError
 from notifee.formatters import MessageFormatter, DefaultFormatter
 
+ResponseFuture = Future[requests.Response]
+Message = str
+QueueItem = tuple[Message, ResponseFuture]
+
 _SENTINEL = None
 
 
@@ -26,7 +30,9 @@ class Notifier:
         self._timeout = timeout
         self._session = session or requests.Session()
         self._formatter = formatter or DefaultFormatter()
-        self._queue = queue.Queue(maxsize=max_queue_size)
+        self._queue: queue.Queue[
+            QueueItem | None
+        ] = queue.Queue(maxsize=max_queue_size)
         self._shutdown = False
         self._workers = []
         for _ in range(max_workers):
@@ -52,10 +58,10 @@ class Notifier:
             except Exception as e:  # pylint: disable=broad-exception-caught
                 future.set_exception(e)
 
-    def notify(self, message: str) -> Future[requests.Response]:
+    def notify(self, message: str) -> ResponseFuture:
         if self._shutdown:
             raise RuntimeError("Notifier is shut down")
-        future = Future()
+        future: ResponseFuture = Future()
         try:
             self._queue.put_nowait((message, future))
         except queue.Full as exc:
@@ -80,6 +86,5 @@ class Notifier:
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
-    ) -> bool:
+    ) -> None:
         self.shutdown()
-        return False
