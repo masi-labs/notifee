@@ -132,7 +132,7 @@ class TestQueueFull:
         release_worker = threading.Event()
         mock_session = MagicMock(spec=requests.Session)
 
-        def slow_post(*a, **kw):
+        def slow_post(*_args, **_kwargs):
             worker_blocked.set()
             release_worker.wait()
 

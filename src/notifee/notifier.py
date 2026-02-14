@@ -2,8 +2,9 @@ import queue
 import threading
 from types import TracebackType
 
-import requests
 from concurrent.futures import Future
+import requests
+
 
 from notifee.exceptions import QueueFullError
 from notifee.formatters import MessageFormatter, DefaultFormatter
@@ -48,7 +49,7 @@ class Notifier:
                 )
                 response.raise_for_status()
                 future.set_result(response)
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 future.set_exception(e)
 
     def notify(self, message: str) -> Future[requests.Response]:
@@ -57,10 +58,10 @@ class Notifier:
         future = Future()
         try:
             self._queue.put_nowait((message, future))
-        except queue.Full:
+        except queue.Full as exc:
             raise QueueFullError(
                 f"Queue is full (max size: {self._queue.maxsize})"
-            )
+            ) from exc
         return future
 
     def shutdown(self, timeout: float | None = None) -> None:

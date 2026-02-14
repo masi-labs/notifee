@@ -22,14 +22,14 @@ class TestDefaultFormatter:
 class TestMessageFormatterAbstract:
     def test_cannot_instantiate_directly(self):
         with pytest.raises(TypeError):
-            MessageFormatter()
+            MessageFormatter()  # pylint: disable=abstract-class-instantiated
 
     def test_subclass_must_implement_format_message(self):
         class IncompleteFormatter(MessageFormatter):
             pass
 
         with pytest.raises(TypeError):
-            IncompleteFormatter()
+            IncompleteFormatter()  # pylint: disable=abstract-class-instantiated
 
 
 class TestCustomFormatter:
