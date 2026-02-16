@@ -6,7 +6,7 @@ with open('requirements/prod.txt', encoding='utf-8') as f:
 
 setup(
     name="notifee",
-    version="0.1.0",
+    version="1.0.0",
     description="Non-blocking HTTP notification client",
     package_dir={"": "src"},
     package_data={'': ['py.typed']},
