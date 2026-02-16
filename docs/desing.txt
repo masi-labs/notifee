@@ -1,0 +1,60 @@
+[x] = stretch goal, not in v1
+
+
+--- Deliverables ---
+
+1. Library (notifee) — reusable notification client
+
+
+--- Library ---
+
+Construction:
+  - Takes a URL, optional max_workers, max_queue_size, timeout
+
+notify(message) -> Future:
+  - Enqueues message, returns immediately (non-blocking)
+  - Returns concurrent.futures.Future (resolves with Response or exception)
+  - Raises QueueFullError if queue is full (fail-fast, never blocks)
+
+Delivery:
+  - No retries — failures go to the Future, caller decides what to do
+  - Once queued, library will attempt to send it
+
+Shutdown:
+  - shutdown(timeout=None) — stops accepting, drains queue, joins workers
+  - Works as context manager (with ... as notifier)
+
+Stretch goals:
+  - Custom headers [x]
+  - notify_batch() [x]
+  - Retry w/ backoff [x]
+  - Observability (queue depth, in-flight count) [x]
+
+
+--- Non-functional ---
+
+Concurrency:
+  - Sync API, background worker threads (like Go goroutines + buffered chan)
+  - notify() is thread-safe
+  - Python 3.10+
+
+Resource bounds:
+  - max_workers caps connections (no FD exhaustion)
+  - max_queue_size caps memory
+  - Shared requests.Session for connection pooling
+
+Backpressure:
+  - Fail-fast only — QueueFullError, caller never blocks
+
+Testing:
+  - Injectable HTTP transport (custom Session) for unit tests
+
+
+--- Architecture ---
+
+  caller -> notify(msg) -> [bounded Queue] -> N worker threads -> POST
+              |                                      |
+        returns Future                        resolves Future
+        immediately                         (response or error)
+
+  Shutdown: flag -> sentinel per worker -> join threads

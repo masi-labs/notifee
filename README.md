@@ -4,8 +4,10 @@ A Python library that sends HTTP POST notifications to a configured endpoint. No
 
 ## Installation
 
+Requires an SSH key with access to the repository (see [GitHub SSH setup](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)).
+
 ```bash
-pip install notifee
+pip install git+ssh://git@github.com/masi-labs/notifee.git
 ```
 
 ## Quick start
