@@ -33,6 +33,7 @@ class Notifier:
         self._queue: queue.Queue[
             QueueItem | None
         ] = queue.Queue(maxsize=max_queue_size)
+        self._lock = threading.Lock()
         self._shutdown = False
         self._workers = []
         for _ in range(max_workers):
@@ -67,19 +68,21 @@ class Notifier:
                 future.set_exception(e)
 
     def notify(self, message: str) -> ResponseFuture:
-        if self._shutdown:
-            raise RuntimeError("Notifier is shut down")
-        future: ResponseFuture = Future()
-        try:
-            self._queue.put_nowait((message, future))
-        except queue.Full as exc:
-            raise QueueFullError(
-                f"Queue is full (max size: {self._queue.maxsize})"
-            ) from exc
+        with self._lock:
+            if self._shutdown:
+                raise RuntimeError("Notifier is shut down")
+            future: ResponseFuture = Future()
+            try:
+                self._queue.put_nowait((message, future))
+            except queue.Full as exc:
+                raise QueueFullError(
+                    f"Queue is full (max size: {self._queue.maxsize})"
+                ) from exc
         return future
 
     def shutdown(self, timeout: float | None = None) -> None:
-        self._shutdown = True
+        with self._lock:
+            self._shutdown = True
         for _ in self._workers:
             self._queue.put(_SENTINEL)
         for worker in self._workers:
