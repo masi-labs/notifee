@@ -28,7 +28,7 @@ class Notifier:
     ) -> None:
         self._url = url
         self._timeout = timeout
-        self._session = session or requests.Session()
+        self._session = session or self._build_session(max_workers)
         self._formatter = formatter or DefaultFormatter()
         self._queue: queue.Queue[
             QueueItem | None
@@ -39,6 +39,14 @@ class Notifier:
             worker = threading.Thread(target=self._worker, daemon=True)
             worker.start()
             self._workers.append(worker)
+
+    @staticmethod
+    def _build_session(pool_maxsize: int) -> requests.Session:
+        session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_maxsize=pool_maxsize)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session
 
     def _worker(self) -> None:
         while True:
