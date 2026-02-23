@@ -107,23 +107,36 @@ class TestNotify:
         assert mock_session.post.call_count == 20
 
     def test_is_non_blocking(self):
+        """notify() returns a Future immediately without waiting for the HTTP request to complete."""
+        request_started = threading.Event()
+        release_request = threading.Event()
         mock_session = MagicMock(spec=requests.Session)
         mock_response = MagicMock(spec=requests.Response)
         mock_response.raise_for_status = MagicMock()
-        mock_session.post.return_value = mock_response
 
-        notifier = Notifier(
-            "http://localhost:8080",
-            max_queue_size=100,
-            session=mock_session,
-        )
-        futures = []
-        for i in range(50):
-            future = notifier.notify(f"msg-{i}")
-            futures.append(future)
+        def slow_post(*_args, **_kwargs):
+            request_started.set()
+            release_request.wait()
+            return mock_response
 
-        assert len(futures) == 50
-        notifier.shutdown()
+        mock_session.post.side_effect = slow_post
+
+        with Notifier("http://localhost:8080", session=mock_session) as notifier:
+            future = notifier.notify("hello")
+
+            # Wait until the worker has picked up the item and the HTTP request is in flight
+            assert request_started.wait(timeout=5), "worker never started the request"
+
+            # The future must still be pending — notify() did not block the caller
+            assert not future.done()
+
+            # The caller is free to do other work while the response is in flight
+            work_result = sum(range(100))
+            assert work_result == 4950
+
+            # Release the HTTP request and verify the future resolves correctly
+            release_request.set()
+            assert future.result(timeout=5) is mock_response
 
 
 class TestQueueFull:
