@@ -82,7 +82,10 @@ class Notifier:
 
     def shutdown(self, timeout: float | None = None) -> None:
         with self._lock:
-            self._shutdown = True
+            if not self._shutdown:
+                self._shutdown = True
+            else:
+                return
         for _ in self._workers:
             self._queue.put(_SENTINEL)
         for worker in self._workers:
